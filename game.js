@@ -22,12 +22,14 @@ setInterval(() => {
   }
   draw();
 }, 60);
+
 const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const gridSize = 12;
 const cellSize = 40;
 const groundLevel = 2; // rows above ground
 let score = 0;
+let money = 500;
 let mode = 'sonar'; // 'sonar', 'drill', 'pipe'
 let deposits = [];
 let revealed = [];
@@ -41,7 +43,6 @@ let gameOver = false;
 let leaderboard = [];
 
 function initGame() {
-  // Random water deposits
   deposits = [];
   revealed = [];
   pipes = [];
@@ -54,7 +55,6 @@ function initGame() {
   for (let y = groundLevel; y < gridSize; y++) {
     for (let x = 0; x < gridSize; x++) {
       if (Math.random() < 0.12) {
-        // Variable size and water amount
         const size = Math.random() < 0.5 ? 1 : (Math.random() < 0.7 ? 2 : 3);
         const water = size * (20 + Math.floor(Math.random() * 30));
         deposits.push({x, y, size, water});
@@ -72,38 +72,38 @@ function initGame() {
 function draw() {
   if (gameOver) return;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
+
   // Draw ground
   ctx.fillStyle = '#a1887f';
   ctx.fillRect(0, groundLevel * cellSize, canvas.width, canvas.height - groundLevel * cellSize);
+
   // Draw grid
   for (let y = 0; y < gridSize; y++) {
     for (let x = 0; x < gridSize; x++) {
-      // If cell is scanned, fill with darker brown
       if (revealed.some(r => r.x === x && r.y === y)) {
-        ctx.fillStyle = '#8d6e63'; // darker brown
+        ctx.fillStyle = '#8d6e63';
         ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
       }
       ctx.strokeStyle = '#bdbdbd';
       ctx.strokeRect(x * cellSize, y * cellSize, cellSize, cellSize);
     }
   }
+
   // Draw revealed deposits
   for (const dep of deposits) {
     if (revealed.some(r => r.x === dep.x && r.y === dep.y) && dep.water > 0) {
-      // Shrink radius as water depletes
       const maxRadius = cellSize/4 + dep.size * 4;
       const radius = Math.max(cellSize/6, maxRadius * (dep.water / (dep.size * 50)));
       ctx.fillStyle = '#2196f3';
       ctx.beginPath();
       ctx.arc(dep.x * cellSize + cellSize/2, dep.y * cellSize + cellSize/2, radius, 0, 2*Math.PI);
       ctx.fill();
-      // Draw water amount
+
       ctx.fillStyle = '#1565c0';
       ctx.font = '12px Arial';
       ctx.fillText(dep.water, dep.x * cellSize + 4, dep.y * cellSize + cellSize - 4);
     } else if (revealed.some(r => r.x === dep.x && r.y === dep.y) && dep.water <= 0) {
-      // Deposit disappears when empty, after a delay
-      if (!dep.removeTime) dep.removeTime = Date.now() + 2000; // 2 seconds
+      if (!dep.removeTime) dep.removeTime = Date.now() + 2000;
       if (Date.now() < dep.removeTime) {
         ctx.fillStyle = '#bdbdbd';
         ctx.beginPath();
@@ -115,6 +115,7 @@ function draw() {
       }
     }
   }
+
   // Draw sonar animation
   if (sonarAnim) {
     ctx.save();
@@ -125,6 +126,7 @@ function draw() {
     ctx.stroke();
     ctx.restore();
   }
+
   // Draw pipes
   for (const pipe of pipes) {
     ctx.strokeStyle = '#607d8b';
@@ -135,57 +137,73 @@ function draw() {
     ctx.stroke();
     ctx.lineWidth = 1;
   }
+
   // Draw drills
   for (const d of drills) {
-  ctx.fillStyle = (selectedDrill && d.x === selectedDrill.x && d.y === selectedDrill.y) ? '#ffd54f' : '#ffb300';
-  ctx.fillRect(d.x * cellSize + cellSize/4, (d.y-1) * cellSize, cellSize/2, cellSize);
-  ctx.fillStyle = '#616161';
-  ctx.fillRect(d.x * cellSize + cellSize/3, d.y * cellSize, cellSize/3, cellSize/2);
-  // Draw water level above drill
-  ctx.fillStyle = '#2196f3';
-  ctx.font = 'bold 13px Arial';
-  ctx.textAlign = 'center';
-  ctx.fillText((d.water || 0) + '/50', d.x * cellSize + cellSize/2, (d.y-1) * cellSize - 6);
-  ctx.textAlign = 'start';
+    ctx.fillStyle = (selectedDrill && d.x === selectedDrill.x && d.y === selectedDrill.y) ? '#ffd54f' : '#ffb300';
+    ctx.fillRect(d.x * cellSize + cellSize/4, (d.y-1) * cellSize, cellSize/2, cellSize);
+    ctx.fillStyle = '#616161';
+    ctx.fillRect(d.x * cellSize + cellSize/3, d.y * cellSize, cellSize/3, cellSize/2);
+
+    ctx.fillStyle = '#2196f3';
+    ctx.font = 'bold 13px Arial';
+    ctx.textAlign = 'center';
+    ctx.fillText((d.water || 0) + '/50', d.x * cellSize + cellSize/2, (d.y-1) * cellSize - 6);
+    ctx.textAlign = 'start';
   }
+
   // Draw people
-    for (const p of people) {
-      ctx.fillStyle = p.color || '#4caf50';
-      ctx.beginPath();
-      // Draw people one tile higher (above ground)
-      ctx.arc(p.x * cellSize + cellSize/2, (p.y-1) * cellSize + cellSize/2, cellSize/3, 0, 2*Math.PI);
-      ctx.fill();
-      // Draw waiting indicator if waiting
-      if (p.state === 'waiting') {
-        ctx.fillStyle = '#ff9800';
-        ctx.font = 'bold 12px Arial';
-        ctx.textAlign = 'center';
-        ctx.fillText('💧', p.x * cellSize + cellSize/2, (p.y-1) * cellSize + cellSize/2 - 18);
-        ctx.textAlign = 'start';
-      }
+  for (const p of people) {
+    ctx.fillStyle = p.color || '#4caf50';
+    ctx.beginPath();
+    ctx.arc(p.x * cellSize + cellSize/2, (p.y-1) * cellSize + cellSize/2, cellSize/3, 0, 2*Math.PI);
+    ctx.fill();
+
+    if (p.state === 'waiting') {
+      ctx.fillStyle = '#ff9800';
+      ctx.font = 'bold 12px Arial';
+      ctx.textAlign = 'center';
+      ctx.fillText('💧', p.x * cellSize + cellSize/2, (p.y-1) * cellSize + cellSize/2 - 18);
+      ctx.textAlign = 'start';
     }
+  }
 }
 
 canvas.addEventListener('click', function(e) {
   const rect = canvas.getBoundingClientRect();
   const x = Math.floor((e.clientX - rect.left) / cellSize);
   const y = Math.floor((e.clientY - rect.top) / cellSize);
+
+    // Drill click: select drill
+  const clickedDrill = drills.find(d => d.x === x && d.y === groundLevel);
+  if (clickedDrill) {
+    selectedDrill = clickedDrill;
+    // Automatically switch to pipe mode if pipe button was previously clicked
+    if (mode === 'drill') {
+      // Only switch if the user was trying to build pipes
+      if (requestedPipeMode) {
+        mode = 'pipe';
+        document.getElementById('pipeBtn').classList.add('active');
+        document.getElementById('drillBtn').classList.remove('active');
+        requestedPipeMode = false; // reset
+      }
+    }
+    draw();
+  }
+
   if (mode === 'sonar' && y >= groundLevel) {
     if (!revealed.some(r => r.x === x && r.y === y)) {
-  if (money < 20) return;
-  money -= 20;
+      if (money < 20) return;
+      money -= 20;
       updateScore();
-      // Start sonar animation
       sonarAnim = {x, y, radius: 0, max: cellSize/2};
-      let animSteps = 12;
-      let step = 0;
+      let animSteps = 12, step = 0;
       const animateSonar = () => {
         sonarAnim.radius = (step / animSteps) * sonarAnim.max;
         draw();
         step++;
-        if (step <= animSteps) {
-          setTimeout(animateSonar, 30);
-        } else {
+        if (step <= animSteps) setTimeout(animateSonar, 30);
+        else {
           revealed.push({x, y});
           sonarAnim = null;
           draw();
@@ -194,24 +212,23 @@ canvas.addEventListener('click', function(e) {
       animateSonar();
     }
   } else if (mode === 'drill' && y === groundLevel-1) {
-    // Place a new drill
+    // Place new drill (does NOT auto-select)
     if (!drills.some(d => d.x === x && d.y === groundLevel)) {
       if (money < 100) return;
       money -= 100;
       updateScore();
       drills.push({x, y: groundLevel, water: 0});
-      selectedDrill = drills[drills.length-1];
       draw();
     }
-  } else if (mode === 'pipe' && selectedDrill) {
-    // Connect revealed deposit to selected drill
-    if (revealed.some(r => r.x === x && r.y === y) && deposits.some(d => d.x === x && d.y === y)) {
-      // Calculate pipe cost
+  } else if (mode === 'pipe') {
+    // Only build pipe if a drill is selected and a deposit is clicked
+    if (selectedDrill && revealed.some(r => r.x === x && r.y === y) && deposits.some(d => d.x === x && d.y === y)) {
+      // Prevent building duplicate pipes
+      if (pipes.some(pipe => pipe.from.x === x && pipe.from.y === y && pipe.to.x === selectedDrill.x && pipe.to.y === selectedDrill.y)) return;
       const dx = Math.abs(x - selectedDrill.x);
       const dy = Math.abs(y - selectedDrill.y);
-      let length = dx + dy;
-      length = Math.ceil(length / 1) * 1; // ensure integer
-      let cost = Math.ceil(length * 10 / 10) * 10; // round to nearest 10
+      const length = dx + dy;
+      const cost = Math.ceil(length * 10 / 10) * 10;
       if (money < cost) return;
       money -= cost;
       updateScore();
@@ -219,17 +236,22 @@ canvas.addEventListener('click', function(e) {
       waterFlow = true;
       draw();
     }
-  } else if (mode === 'drill' && y === groundLevel) {
-    // Select a drill
-    const found = drills.find(d => d.x === x && d.y === groundLevel);
-    if (found) {
-      selectedDrill = found;
-      draw();
-    }
   }
 });
 
 function setMode(m) {
+  if (m === 'pipe') {
+    // If no drill is selected, just remember we want pipe mode
+    if (!selectedDrill) {
+      requestedPipeMode = true; // flag that pipe mode is desired
+      mode = 'drill'; // temporarily in drill mode to select a drill
+      document.getElementById('sonarBtn').classList.remove('active');
+      document.getElementById('drillBtn').classList.add('active');
+      document.getElementById('pipeBtn').classList.remove('active');
+      return;
+    }
+  }
+  requestedPipeMode = false;
   mode = m;
   document.getElementById('sonarBtn').classList.toggle('active', m==='sonar');
   document.getElementById('drillBtn').classList.toggle('active', m==='drill');
@@ -249,68 +271,51 @@ function updateScore() {
     }, 300);
   }
   updateScore.lastMoney = money;
-  }
+}
 
 function spawnPerson() {
   if (drills.length > 0) {
-    // Pick a random drill for the person to approach
     const d = drills[Math.floor(Math.random() * drills.length)];
-    // Randomly choose left or right
     const fromLeft = Math.random() < 0.5;
     const startX = fromLeft ? -1 : gridSize;
-    // Assign thirst level and color
     const thirst = Math.floor(Math.random() * 5) + 1;
-    let color = '#4caf50'; // green
-    if (thirst === 2) color = '#8bc34a'; // light green
-    if (thirst === 3) color = '#ffeb3b'; // yellow
-    if (thirst === 4) color = '#ff9800'; // orange
-    if (thirst === 5) color = '#f44336'; // red
+    let color = '#4caf50';
+    if (thirst === 2) color = '#8bc34a';
+    if (thirst === 3) color = '#ffeb3b';
+    if (thirst === 4) color = '#ff9800';
+    if (thirst === 5) color = '#f44336';
     people.push({x: startX, y: groundLevel, targetX: d.x, state: 'walking', thirst, color});
     draw();
   }
 }
 
 function serveWater() {
-  // Serve water only if drill has water
   for (const drill of drills) {
-    // Find people at this drill
     const waiting = people.filter(p => p.x === drill.x && p.y === groundLevel && p.state === 'waiting');
     if (drill.water > 0 && waiting.length > 0) {
       const person = waiting[0];
       const drink = Math.min(person.thirst, drill.water);
       drill.water -= drink;
-  score += 1;
-  money += 50; // Earn money for serving water
-  updateScore();
+      score += 1;
+      money += 50;
+      updateScore();
       people.splice(people.indexOf(person), 1);
       draw();
     }
   }
 }
 
-// Game loop for people
+// People and water loops
 setInterval(() => {
-  if (drills.length > 0 && Math.random() < 0.3 && people.length < 5) {
-    spawnPerson();
-  }
+  const maxPeople = drills.length * 3;
+  if (drills.length > 0 && Math.random() < 0.3 && people.length < maxPeople) spawnPerson();
 }, 1200);
 
-// Water flow from deposits to drills via pipes
 setInterval(() => {
-  // Periodically unscan tiles without deposits
-  if (Math.random() < 0.05) {
-    // Find scanned tiles without deposits
-    let scanned = revealed.filter(r => !deposits.some(d => d.x === r.x && d.y === r.y));
-    if (scanned.length > 0) {
-      const idx = Math.floor(Math.random() * scanned.length);
-      revealed.splice(revealed.findIndex(r => r.x === scanned[idx].x && r.y === scanned[idx].y), 1);
-    }
-  }
-  // Remove deposits marked for removal
   deposits = deposits.filter(dep => dep.water > 0 || !dep.removeTime || Date.now() < dep.removeTime);
-  // Periodically spawn new deposits if less than 15
+
+  // Spawn new deposits
   if (deposits.length < 15 && Math.random() < 0.08) {
-    // Find unexplored tiles
     let unexplored = [];
     for (let y = groundLevel; y < gridSize; y++) {
       for (let x = 0; x < gridSize; x++) {
@@ -327,13 +332,13 @@ setInterval(() => {
       deposits.push({x: pos.x, y: pos.y, size, water});
     }
   }
-  // Remove pipes for empty deposits
+
   pipes = pipes.filter(pipe => {
     const dep = deposits.find(d => d.x === pipe.from.x && d.y === pipe.from.y);
     return dep && dep.water > 0;
   });
+
   for (const pipe of pipes) {
-    // Find deposit and drill
     const dep = deposits.find(d => d.x === pipe.from.x && d.y === pipe.from.y);
     const drill = drills.find(dr => dr.x === pipe.to.x && dr.y === pipe.to.y);
     if (dep && drill && dep.water > 0 && drill.water < 50) {
@@ -342,19 +347,33 @@ setInterval(() => {
       drill.water += transfer;
     }
   }
+
   draw();
 }, 1000);
 
-// Serve water when people are present
+setInterval(() => { serveWater(); }, 1500);
+
 setInterval(() => {
-  serveWater();
-}, 1500);
+  for (const drill of drills) {
+    const waiting = people.filter(p => p.x === drill.x && p.y === groundLevel && p.state === 'waiting');
+    if (drill.water <= 0 && waiting.length > 0) {
+      for (const person of waiting) {
+        if (!person.waitingSince) person.waitingSince = Date.now();
+        if (Date.now() - person.waitingSince > 3000) {
+          people.splice(people.indexOf(person), 1);
+          draw();
+        }
+      }
+    } else {
+      for (const person of waiting) { person.waitingSince = undefined; }
+    }
+  }
+}, 500);
 
 function endGame() {
   gameOver = true;
   document.getElementById('gameOverScreen').style.display = 'flex';
   document.getElementById('gameCanvas').style.filter = 'blur(2px) brightness(0.7)';
-  // Animate game over text
   let anim = document.getElementById('gameOverAnim');
   anim.style.transform = 'scale(1.3)';
   anim.style.transition = 'transform 0.5s';
@@ -372,7 +391,6 @@ function submitScore() {
   const name = document.getElementById('playerName').value.trim() || 'Anonymous';
   leaderboard.push({ name, score });
   leaderboard.sort((a, b) => b.score - a.score);
-  // Show leaderboard
   const scoresList = document.getElementById('scoresList');
   scoresList.innerHTML = '';
   leaderboard.forEach(entry => {
