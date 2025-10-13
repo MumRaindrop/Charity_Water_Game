@@ -1,0 +1,143 @@
+@media (max-width: 700px) {
+  #ui {
+    flex-direction: row;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    gap: 10px;
+  }
+  #score, #money {
+    display: block;
+    margin-left: 0;
+    margin-top: 8px;
+    text-align: center;
+    width: 100%;
+  }
+}
+#brandHeader {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+#brandHeader img {
+  height: 100px;
+  margin-right: 24px;
+  width: auto;
+}
+
+#brandTitle {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-size: 2.2em;
+  letter-spacing: 0.04em;
+  color: #1a1a1a;
+  font-weight: 400;
+}
+
+#brandSubtitle {
+  font-family: 'Georgia', 'Times New Roman', serif;
+  font-size: 1.5em;
+  color: #003366;
+  font-weight: 400;
+  margin-left: 2px;
+}
+#gameOverScreen {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(33,150,243,0.85);
+  color: white;
+  font-size: 32px;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  z-index: 10;
+}
+
+#gameOverAnim {
+  margin-bottom: 20px;
+  font-size: 40px;
+  animation: popAnim 0.7s;
+}
+
+@keyframes popAnim {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.3); }
+  100% { transform: scale(1); }
+}
+
+#leaderboardScreen {
+  display: none;
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255,255,255,0.97);
+  color: #1976d2;
+  font-size: 24px;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  z-index: 20;
+}
+
+#leaderboard h3 {
+  margin-bottom: 10px;
+}
+
+#scoresList {
+  list-style: none;
+  padding: 0;
+  margin-bottom: 20px;
+}
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #e3f2fd;
+}
+#gameContainer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 20px;
+}
+#gameCanvas {
+  border: 2px solid #1976d2;
+  background: #fffde7;
+}
+#ui {
+  margin-top: 10px;
+  display: flex;
+  gap: 20px;
+}
+.button {
+  padding: 8px 16px;
+  background: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.button:active {
+  background: #1565c0;
+}
+
+#score {
+  font-size: 18px;
+  color: #388e3c;
+  margin-left: 20px;
+}
+
+#money {
+  font-size: 18px;
+  color: #1976d2;
+  margin-left: 20px;
+  font-weight: bold;
+  transition: transform 0.3s, color 0.3s;
+  display: inline-block;
+}
