@@ -3,7 +3,6 @@ setInterval(() => {
   for (const p of people) {
     if (p.state === 'walking') {
       if (typeof p.targetX !== 'undefined') {
-        // Move horizontally toward drill
         if (p.x < p.targetX) {
           p.x += 0.2;
           if (p.x >= p.targetX) {
@@ -27,10 +26,10 @@ const canvas = document.getElementById('gameCanvas');
 const ctx = canvas.getContext('2d');
 const gridSize = 12;
 const cellSize = 40;
-const groundLevel = 2; // rows above ground
+const groundLevel = 2;
 let score = 0;
 let money = 500;
-let mode = 'sonar'; // 'sonar', 'drill', 'pipe'
+let mode = 'sonar';
 let deposits = [];
 let revealed = [];
 let sonarAnim = null;
@@ -41,6 +40,7 @@ let people = [];
 let waterFlow = false;
 let gameOver = false;
 let leaderboard = [];
+let requestedPipeMode = false;
 
 function initGame() {
   deposits = [];
@@ -57,7 +57,7 @@ function initGame() {
       if (Math.random() < 0.12) {
         const size = Math.random() < 0.5 ? 1 : (Math.random() < 0.7 ? 2 : 3);
         const water = size * (20 + Math.floor(Math.random() * 30));
-        deposits.push({x, y, size, water});
+        deposits.push({ x, y, size, water, state: 'full', removeTime: null });
       }
     }
   }
@@ -69,18 +69,43 @@ function initGame() {
   gameOver = false;
 }
 
+// Reveal duration now randomized between 25–35 seconds
+function revealCell(x, y) {
+  const now = Date.now();
+  const revealDuration = 25000 + Math.random() * 10000;
+  const expiresAt = now + revealDuration;
+
+  const existing = revealed.find(r => r.x === x && r.y === y);
+  if (existing) {
+    existing.expiresAt = expiresAt;
+  } else {
+    revealed.push({ x, y, expiresAt });
+  }
+}
+
+function isCellRevealed(x, y) {
+  const now = Date.now();
+  // Keep cells revealed if they have a deposit
+  revealed = revealed.filter(r => {
+    const dep = deposits.find(d => d.x === r.x && d.y === r.y);
+    const hasDeposit = dep && (dep.water > 0 || (dep.state === 'empty' && dep.removeTime && now < dep.removeTime));
+    return r.expiresAt > now || hasDeposit;
+  });
+  return revealed.some(r => r.x === x && r.y === y);
+}
+
 function draw() {
   if (gameOver) return;
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  // Draw ground
+  // Ground
   ctx.fillStyle = '#a1887f';
   ctx.fillRect(0, groundLevel * cellSize, canvas.width, canvas.height - groundLevel * cellSize);
 
-  // Draw grid
+  // Grid
   for (let y = 0; y < gridSize; y++) {
     for (let x = 0; x < gridSize; x++) {
-      if (revealed.some(r => r.x === x && r.y === y)) {
+      if (isCellRevealed(x, y)) {
         ctx.fillStyle = '#8d6e63';
         ctx.fillRect(x * cellSize, y * cellSize, cellSize, cellSize);
       }
@@ -89,25 +114,31 @@ function draw() {
     }
   }
 
-  // Draw revealed deposits
+  // Deposits
   for (const dep of deposits) {
-    if (revealed.some(r => r.x === dep.x && r.y === dep.y) && dep.water > 0) {
-      const maxRadius = cellSize/4 + dep.size * 4;
-      const radius = Math.max(cellSize/6, maxRadius * (dep.water / (dep.size * 50)));
+  if (isCellRevealed(dep.x, dep.y)) {
+    if (dep.water > 0) {
+      dep.state = 'full';
+      const maxRadius = cellSize / 4 + dep.size * 4;
+      const radius = Math.max(cellSize / 6, maxRadius * (dep.water / (dep.size * 50)));
       ctx.fillStyle = '#2196f3';
       ctx.beginPath();
-      ctx.arc(dep.x * cellSize + cellSize/2, dep.y * cellSize + cellSize/2, radius, 0, 2*Math.PI);
+      ctx.arc(dep.x * cellSize + cellSize / 2, dep.y * cellSize + cellSize / 2, radius, 0, 2 * Math.PI);
       ctx.fill();
 
       ctx.fillStyle = '#1565c0';
       ctx.font = '12px Arial';
       ctx.fillText(dep.water, dep.x * cellSize + 4, dep.y * cellSize + cellSize - 4);
-    } else if (revealed.some(r => r.x === dep.x && r.y === dep.y) && dep.water <= 0) {
-      if (!dep.removeTime) dep.removeTime = Date.now() + 2000;
+    } else {
+      // Water drained -> grey empty
+      if (dep.state !== 'empty') {
+        dep.state = 'empty';
+        dep.removeTime = Date.now() + 2000; // 2s grey empty
+      }
       if (Date.now() < dep.removeTime) {
         ctx.fillStyle = '#bdbdbd';
         ctx.beginPath();
-        ctx.arc(dep.x * cellSize + cellSize/2, dep.y * cellSize + cellSize/2, cellSize/8, 0, 2*Math.PI);
+        ctx.arc(dep.x * cellSize + cellSize / 2, dep.y * cellSize + cellSize / 2, cellSize / 8, 0, 2 * Math.PI);
         ctx.fill();
         ctx.fillStyle = '#757575';
         ctx.font = '12px Arial';
@@ -115,88 +146,84 @@ function draw() {
       }
     }
   }
+}
 
-  // Draw sonar animation
+  // Sonar animation
   if (sonarAnim) {
     ctx.save();
     ctx.strokeStyle = 'rgba(33,150,243,0.5)';
     ctx.lineWidth = 4;
     ctx.beginPath();
-    ctx.arc(sonarAnim.x * cellSize + cellSize/2, sonarAnim.y * cellSize + cellSize/2, sonarAnim.radius, 0, 2*Math.PI);
+    ctx.arc(sonarAnim.x * cellSize + cellSize / 2, sonarAnim.y * cellSize + cellSize / 2, sonarAnim.radius, 0, 2 * Math.PI);
     ctx.stroke();
     ctx.restore();
   }
 
-  // Draw pipes
+  // Pipes
   for (const pipe of pipes) {
     ctx.strokeStyle = '#607d8b';
     ctx.lineWidth = 6;
     ctx.beginPath();
-    ctx.moveTo(pipe.from.x * cellSize + cellSize/2, pipe.from.y * cellSize + cellSize/2);
-    ctx.lineTo(pipe.to.x * cellSize + cellSize/2, pipe.to.y * cellSize + cellSize/2);
+    ctx.moveTo(pipe.from.x * cellSize + cellSize / 2, pipe.from.y * cellSize + cellSize / 2);
+    ctx.lineTo(pipe.to.x * cellSize + cellSize / 2, pipe.to.y * cellSize + cellSize / 2);
     ctx.stroke();
     ctx.lineWidth = 1;
   }
 
-  // Draw drills
+  // Drills
   for (const d of drills) {
     ctx.fillStyle = (selectedDrill && d.x === selectedDrill.x && d.y === selectedDrill.y) ? '#ffd54f' : '#ffb300';
-    ctx.fillRect(d.x * cellSize + cellSize/4, (d.y-1) * cellSize, cellSize/2, cellSize);
+    ctx.fillRect(d.x * cellSize + cellSize / 4, (d.y - 1) * cellSize, cellSize / 2, cellSize);
     ctx.fillStyle = '#616161';
-    ctx.fillRect(d.x * cellSize + cellSize/3, d.y * cellSize, cellSize/3, cellSize/2);
+    ctx.fillRect(d.x * cellSize + cellSize / 3, d.y * cellSize, cellSize / 3, cellSize / 2);
 
     ctx.fillStyle = '#2196f3';
     ctx.font = 'bold 13px Arial';
     ctx.textAlign = 'center';
-    ctx.fillText((d.water || 0) + '/50', d.x * cellSize + cellSize/2, (d.y-1) * cellSize - 6);
+    ctx.fillText((d.water || 0) + '/50', d.x * cellSize + cellSize / 2, (d.y - 1) * cellSize - 6);
     ctx.textAlign = 'start';
   }
 
-  // Draw people
+  // People
   for (const p of people) {
     ctx.fillStyle = p.color || '#4caf50';
     ctx.beginPath();
-    ctx.arc(p.x * cellSize + cellSize/2, (p.y-1) * cellSize + cellSize/2, cellSize/3, 0, 2*Math.PI);
+    ctx.arc(p.x * cellSize + cellSize / 2, (p.y - 1) * cellSize + cellSize / 2, cellSize / 3, 0, 2 * Math.PI);
     ctx.fill();
 
     if (p.state === 'waiting') {
       ctx.fillStyle = '#ff9800';
       ctx.font = 'bold 12px Arial';
       ctx.textAlign = 'center';
-      ctx.fillText('💧', p.x * cellSize + cellSize/2, (p.y-1) * cellSize + cellSize/2 - 18);
+      ctx.fillText('💧', p.x * cellSize + cellSize / 2, (p.y - 1) * cellSize + cellSize / 2 - 18);
       ctx.textAlign = 'start';
     }
   }
 }
 
-canvas.addEventListener('click', function(e) {
+canvas.addEventListener('click', function (e) {
   const rect = canvas.getBoundingClientRect();
   const x = Math.floor((e.clientX - rect.left) / cellSize);
   const y = Math.floor((e.clientY - rect.top) / cellSize);
 
-    // Drill click: select drill
   const clickedDrill = drills.find(d => d.x === x && d.y === groundLevel);
   if (clickedDrill) {
     selectedDrill = clickedDrill;
-    // Automatically switch to pipe mode if pipe button was previously clicked
-    if (mode === 'drill') {
-      // Only switch if the user was trying to build pipes
-      if (requestedPipeMode) {
-        mode = 'pipe';
-        document.getElementById('pipeBtn').classList.add('active');
-        document.getElementById('drillBtn').classList.remove('active');
-        requestedPipeMode = false; // reset
-      }
+    if (mode === 'drill' && requestedPipeMode) {
+      mode = 'pipe';
+      document.getElementById('pipeBtn').classList.add('active');
+      document.getElementById('drillBtn').classList.remove('active');
+      requestedPipeMode = false;
     }
     draw();
   }
 
   if (mode === 'sonar' && y >= groundLevel) {
-    if (!revealed.some(r => r.x === x && r.y === y)) {
+    if (!isCellRevealed(x, y)) {
       if (money < 20) return;
       money -= 20;
       updateScore();
-      sonarAnim = {x, y, radius: 0, max: cellSize/2};
+      sonarAnim = { x, y, radius: 0, max: cellSize / 2 };
       let animSteps = 12, step = 0;
       const animateSonar = () => {
         sonarAnim.radius = (step / animSteps) * sonarAnim.max;
@@ -204,26 +231,23 @@ canvas.addEventListener('click', function(e) {
         step++;
         if (step <= animSteps) setTimeout(animateSonar, 30);
         else {
-          revealed.push({x, y});
+          revealCell(x, y);
           sonarAnim = null;
           draw();
         }
       };
       animateSonar();
     }
-  } else if (mode === 'drill' && y === groundLevel-1) {
-    // Place new drill (does NOT auto-select)
+  } else if (mode === 'drill' && y === groundLevel - 1) {
     if (!drills.some(d => d.x === x && d.y === groundLevel)) {
       if (money < 100) return;
       money -= 100;
       updateScore();
-      drills.push({x, y: groundLevel, water: 0});
+      drills.push({ x, y: groundLevel, water: 0 });
       draw();
     }
   } else if (mode === 'pipe') {
-    // Only build pipe if a drill is selected and a deposit is clicked
-    if (selectedDrill && revealed.some(r => r.x === x && r.y === y) && deposits.some(d => d.x === x && d.y === y)) {
-      // Prevent building duplicate pipes
+    if (selectedDrill && isCellRevealed(x, y) && deposits.some(d => d.x === x && d.y === y)) {
       if (pipes.some(pipe => pipe.from.x === x && pipe.from.y === y && pipe.to.x === selectedDrill.x && pipe.to.y === selectedDrill.y)) return;
       const dx = Math.abs(x - selectedDrill.x);
       const dy = Math.abs(y - selectedDrill.y);
@@ -232,7 +256,7 @@ canvas.addEventListener('click', function(e) {
       if (money < cost) return;
       money -= cost;
       updateScore();
-      pipes.push({from: {x, y}, to: {x: selectedDrill.x, y: selectedDrill.y}});
+      pipes.push({ from: { x, y }, to: { x: selectedDrill.x, y: selectedDrill.y } });
       waterFlow = true;
       draw();
     }
@@ -241,10 +265,9 @@ canvas.addEventListener('click', function(e) {
 
 function setMode(m) {
   if (m === 'pipe') {
-    // If no drill is selected, just remember we want pipe mode
     if (!selectedDrill) {
-      requestedPipeMode = true; // flag that pipe mode is desired
-      mode = 'drill'; // temporarily in drill mode to select a drill
+      requestedPipeMode = true;
+      mode = 'drill';
       document.getElementById('sonarBtn').classList.remove('active');
       document.getElementById('drillBtn').classList.add('active');
       document.getElementById('pipeBtn').classList.remove('active');
@@ -253,9 +276,9 @@ function setMode(m) {
   }
   requestedPipeMode = false;
   mode = m;
-  document.getElementById('sonarBtn').classList.toggle('active', m==='sonar');
-  document.getElementById('drillBtn').classList.toggle('active', m==='drill');
-  document.getElementById('pipeBtn').classList.toggle('active', m==='pipe');
+  document.getElementById('sonarBtn').classList.toggle('active', m === 'sonar');
+  document.getElementById('drillBtn').classList.toggle('active', m === 'drill');
+  document.getElementById('pipeBtn').classList.toggle('active', m === 'pipe');
 }
 
 function updateScore() {
@@ -284,7 +307,7 @@ function spawnPerson() {
     if (thirst === 3) color = '#ffeb3b';
     if (thirst === 4) color = '#ff9800';
     if (thirst === 5) color = '#f44336';
-    people.push({x: startX, y: groundLevel, targetX: d.x, state: 'walking', thirst, color});
+    people.push({ x: startX, y: groundLevel, targetX: d.x, state: 'walking', thirst, color });
     draw();
   }
 }
@@ -305,33 +328,15 @@ function serveWater() {
   }
 }
 
-// People and water loops
+// People spawn
 setInterval(() => {
   const maxPeople = drills.length * 3;
   if (drills.length > 0 && Math.random() < 0.3 && people.length < maxPeople) spawnPerson();
 }, 1200);
 
+// Water flow update
 setInterval(() => {
   deposits = deposits.filter(dep => dep.water > 0 || !dep.removeTime || Date.now() < dep.removeTime);
-
-  // Spawn new deposits
-  if (deposits.length < 15 && Math.random() < 0.08) {
-    let unexplored = [];
-    for (let y = groundLevel; y < gridSize; y++) {
-      for (let x = 0; x < gridSize; x++) {
-        if (!deposits.some(d => d.x === x && d.y === y) && !revealed.some(r => r.x === x && r.y === y)) {
-          unexplored.push({x, y});
-        }
-      }
-    }
-    if (unexplored.length > 0) {
-      const idx = Math.floor(Math.random() * unexplored.length);
-      const pos = unexplored[idx];
-      const size = Math.random() < 0.5 ? 1 : (Math.random() < 0.7 ? 2 : 3);
-      const water = size * (20 + Math.floor(Math.random() * 30));
-      deposits.push({x: pos.x, y: pos.y, size, water});
-    }
-  }
 
   pipes = pipes.filter(pipe => {
     const dep = deposits.find(d => d.x === pipe.from.x && d.y === pipe.from.y);
@@ -350,6 +355,54 @@ setInterval(() => {
 
   draw();
 }, 1000);
+
+// Expire reveals & manage deposits
+setInterval(() => {
+  const now = Date.now();
+  // Remove expired empty deposits
+  deposits = deposits.filter(d => {
+    if (d.state === 'empty') {
+      return Date.now() < d.removeTime;
+    }
+    return true; // keep full deposits
+  });
+
+  // Remove expired reveals unless cell has a deposit
+  revealed = revealed.filter(r => {
+    const hasDeposit = deposits.some(d => d.x === r.x && d.y === r.y && d.water > 0);
+    return r.expiresAt > now || hasDeposit;
+  });
+
+  // Keep around 15 deposits
+  if (deposits.length < 15 && Math.random() < 0.1) {
+    const candidates = [];
+    for (let y = groundLevel; y < gridSize; y++) {
+      for (let x = 0; x < gridSize; x++) {
+        const revealedCell = revealed.some(r => r.x === x && r.y === y);
+        const hasDeposit = deposits.some(d => d.x === x && d.y === y);
+        if (!revealedCell && !hasDeposit) candidates.push({ x, y });
+      }
+    }
+
+    if (candidates.length > 0) {
+      const pos = candidates[Math.floor(Math.random() * candidates.length)];
+      const size = Math.random() < 0.5 ? 1 : (Math.random() < 0.7 ? 2 : 3);
+      const water = size * (20 + Math.floor(Math.random() * 30));
+      deposits.push({ x: pos.x, y: pos.y, size, water });
+    }
+  }
+
+  // Trim excess deposits
+  if (deposits.length > 15) {
+    const empties = deposits.filter(d => d.water <= 0);
+    while (deposits.length > 15 && empties.length > 0) {
+      const d = empties.pop();
+      deposits.splice(deposits.indexOf(d), 1);
+    }
+  }
+
+  draw();
+}, 4000);
 
 setInterval(() => { serveWater(); }, 1500);
 
@@ -383,35 +436,21 @@ function endGame() {
 function showLeaderboardPrompt() {
   document.getElementById('gameOverScreen').style.display = 'none';
   document.getElementById('leaderboardScreen').style.display = 'flex';
-  document.getElementById('namePrompt').style.display = 'block';
-  document.getElementById('leaderboard').style.display = 'none';
 }
 
 function submitScore() {
-  const name = document.getElementById('playerName').value.trim() || 'Anonymous';
+  const name = document.getElementById('playerName').value.trim();
+  if (name === '') return;
   leaderboard.push({ name, score });
   leaderboard.sort((a, b) => b.score - a.score);
-  const scoresList = document.getElementById('scoresList');
-  scoresList.innerHTML = '';
-  leaderboard.forEach(entry => {
+  const lb = document.getElementById('leaderboardList');
+  lb.innerHTML = '';
+  for (const e of leaderboard.slice(0, 5)) {
     const li = document.createElement('li');
-    li.textContent = entry.name + ': ' + entry.score + ' thirsts quenched';
-    scoresList.appendChild(li);
-  });
-  document.getElementById('namePrompt').style.display = 'none';
-  document.getElementById('leaderboard').style.display = 'block';
+    li.textContent = e.name + ': ' + e.score;
+    lb.appendChild(li);
+  }
+  document.getElementById('submitScoreBtn').style.display = 'none';
 }
-
-function restartFromLeaderboard() {
-  document.getElementById('leaderboardScreen').style.display = 'none';
-  document.getElementById('gameCanvas').style.filter = '';
-  gameOver = false;
-  initGame();
-}
-
-window.endGame = endGame;
-window.showLeaderboardPrompt = showLeaderboardPrompt;
-window.submitScore = submitScore;
-window.restartFromLeaderboard = restartFromLeaderboard;
 
 initGame();
