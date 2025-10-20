@@ -1,72 +1,146 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
-	<meta charset="UTF-8">
-	<meta name="viewport" content="width=device-width, initial-scale=1.0">
-	<title>Charity Water Game</title>
-	<link rel="stylesheet" href="style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Charity Water Game</title>
+  <link rel="stylesheet" href="style.css"/>
+  <style>
+    /* minimal inline styles to ensure overlays position correctly */
+    #gameContainer { position: relative; width: 480px; margin: 0 auto; }
+    /* ensure leader/overlays center correctly */
+    #leaderboardScreen, #gameOverScreen {
+      position: absolute;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      justify-content: center;
+      align-items: center;
+      flex-direction: column;
+      z-index: 20;
+    }
+  </style>
 </head>
 <body>
-		<div id="gameContainer">
-			<div id="brandHeader" style="display:flex; align-items:center; justify-content:center; margin-bottom:10px;">
-				<img src="jerrycan.png" alt="Jerry Can">
-				<div style="text-align:left;">
-					<span id="brandTitle" style="font-family: 'Georgia', 'Times New Roman', serif; font-size:2.2em; letter-spacing:0.04em; color:#1a1a1a; font-weight:400;">
-						Charity : Water
-					</span><br>
-					<span id="brandSubtitle" style="font-family: 'Georgia', 'Times New Roman', serif; font-size:1.5em; color:#003366; font-weight:400; margin-left:2px;">
-						Game
-					</span>
-				</div>
-			</div>
-			<div id="thirstKey" style="margin-bottom: 10px; font-size: 14px;">
-				<span style="color:#333;font-weight:bold;">Thirst Key:</span>
-				<span style="color:#4caf50;font-weight:bold;">Green: 1</span>
-				<span style="color:#8bc34a;font-weight:bold; margin-left:10px;">Light Green: 2</span>
-				<span style="color:#ffeb3b;font-weight:bold; margin-left:10px;">Yellow: 3</span>
-				<span style="color:#ff9800;font-weight:bold; margin-left:10px;">Orange: 4</span>
-				<span style="color:#f44336;font-weight:bold; margin-left:10px;">Red: 5</span>
-			</div>
-			<canvas id="gameCanvas" width="480" height="480"></canvas>
-			<div id="gameOverScreen" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(33,150,243,0.85); color:white; font-size:32px; justify-content:center; align-items:center; flex-direction:column; z-index:10;">
-				<div id="gameOverAnim" style="margin-bottom:20px;">💧 GAME OVER 💧</div>
-				<button id="toLeaderboardBtn" class="button" onclick="showLeaderboardPrompt()">Go to Leaderboard</button>
-			</div>
-			<div id="leaderboardScreen" style="display:none; position:absolute; top:0; left:0; width:100%; height:100%; background:rgba(255,255,255,0.97); color:#1976d2; font-size:24px; justify-content:center; align-items:center; flex-direction:column; z-index:20;">
-				<div id="namePrompt" style="margin-bottom:20px;">
-					<label for="playerName">Enter your name:</label>
-					<input type="text" id="playerName" maxlength="20" style="font-size:20px;">
-					<button class="button" onclick="submitScore()">Submit</button>
-				</div>
-				<div id="leaderboard" style="display:none;">
-					<div id="charityDesc" style="max-width:480px; margin-bottom:24px; color:#333; font-size:18px; text-align:left;">
-						<div style="font-size:2em; color:#1a1a1a; font-family:'Georgia','Times New Roman',serif; font-weight:400; margin-bottom:8px;">
-							Charity : Water
-						</div>
-						<a href="https://www.charitywater.org/?utm_source=adwords&utm_medium=paid-ppc&utm_campaign=spring-acq-usrow&utm_term=cBC_CW_G_PAID_SEARCH_BRAND_ALL_US+ROW_OBSV_ALL_PHRASE_ALL&utm_content=branded&gad_source=1&gad_campaignid=22148602074&gbraid=0AAAAADNj5D9oaKeVb16OdvI3FcKDVd0Eu&gclid=Cj0KCQjwo63HBhCKARIsAHOHV_XSxgoWrnocS3-5FJKUMnb6v_wg1T_lH55-prFzQ8JqS712Polz3TcaAsieEALw_wcB" target="_blank" style="color:#003366; text-decoration:underline; font-size:1em;">Visit charitywater.org</a>
-						<p style="margin-top:12px; font-size:1em; color:#333;">
-							Charity: Water is a non-profit organization bringing clean and safe drinking water to people in developing countries. Their mission is to solve the water crisis by funding sustainable water projects and inspiring generosity. 100% of public donations go directly to water projects, helping communities thrive and giving hope for a better future.
-						</p>
-					</div>
-					<h3>Leaderboard</h3>
-					<ul id="scoresList"></ul>
-					<button class="button" onclick="restartFromLeaderboard()">Play Again</button>
-				</div>
-			</div>
-			<div id="ui">
-				<button id="sonarBtn" class="button active" onclick="setMode('sonar')">Sonar</button>
-				<button id="drillBtn" class="button" onclick="setMode('drill')">Place Drill</button>
-				<button id="pipeBtn" class="button" onclick="setMode('pipe')">Build Pipe</button>
-				<button class="button" onclick="endGame()">Bankruptcy</button>
-				<span id="score">Thirst Quenched: 0</span>
-				<span id="money" style="font-size:18px; color:#1976d2; margin-left:20px; font-weight:bold; transition:transform 0.3s, color 0.3s;">$500</span>
-			</div>
-			<p style="max-width: 480px; margin-top: 10px; color: #555;">
-				<strong>How to Play:</strong> Use sonar to scan underground for hidden water deposits. Place drills above ground, then build pipes to connect your drills to the water sources. As people arrive, serve them water from your drills to quench their thirst and earn money. Manage your resources, expand your network, and keep the water flowing to help as many people as possible. Can you build the most successful water charity?
-			</p>
-		</div>
-	<script src="game.js"></script>
+  <div id="gameContainer">
+    <div id="brandHeader" style="display:flex; align-items:center; justify-content:center; margin-bottom:10px;">
+      <img src="jerrycan.png" alt="Jerry Can">
+      <div style="text-align:left;">
+        <span id="brandTitle" style="font-family: 'Georgia', 'Times New Roman', serif; font-size:2.2em; letter-spacing:0.04em; color:#1a1a1a; font-weight:400;">
+          Charity : Water
+        </span><br>
+        <span id="brandSubtitle" style="font-family: 'Georgia', 'Times New Roman', serif; font-size:1.5em; color:#003366; font-weight:400; margin-left:2px;">
+          Game
+        </span>
+      </div>
+    </div>
+
+    <div id="thirstKey" style="margin-bottom: 10px; font-size: 14px;">
+      <span style="color:#333;font-weight:bold;">Thirst Key:</span>
+      <span style="color:#4caf50;font-weight:bold;">Green: 1</span>
+      <span style="color:#8bc34a;font-weight:bold; margin-left:10px;">Light Green: 2</span>
+      <span style="color:#ffeb3b;font-weight:bold; margin-left:10px;">Yellow: 3</span>
+      <span style="color:#ff9800;font-weight:bold; margin-left:10px;">Orange: 4</span>
+      <span style="color:#f44336;font-weight:bold; margin-left:10px;">Red: 5</span>
+    </div>
+
+    <canvas id="gameCanvas" width="480" height="480"></canvas>
+
+    <!-- Game Over Screen -->
+    <div id="gameOverScreen" style="display:none; background:rgba(33,150,243,0.85); color:white; font-size:32px; justify-content:center; align-items:center; display:flex;">
+      <div id="gameOverAnim" style="margin-bottom:20px;">💧 GAME OVER 💧</div>
+      <button id="toLeaderboardBtn" class="button" onclick="showLeaderboardPrompt()">Go to Leaderboard</button>
+    </div>
+
+    <!-- Leaderboard / Welcome overlay (VISIBLE on load) -->
+    <div id="leaderboardScreen" style="display:flex; background:rgba(255,255,255,0.97); color:#1976d2; font-size:24px;">
+      <!-- Welcome content shown on initial load -->
+      <div id="welcomeScreen" style="text-align:center; padding:18px; max-width:420px;">
+        <h2 style="font-family:'Georgia','Times New Roman',serif; margin-bottom:6px;">Welcome to Charity : Water Game</h2>
+        <p style="max-width:420px; margin:6px auto 16px; color:#333; font-size:16px;">
+          Bring clean water to those in need. Use sonar to find water, place drills, and connect them with pipes.
+          Serve people to quench thirst and grow your charity. Choose a difficulty to start:
+        </p>
+
+        <div style="display:flex; gap:8px; justify-content:center; margin-top:12px;">
+          <!-- Buttons have ids that game.js expects for toggling .active -->
+          <button id="easyBtn" class="button" style="background:#81c784;" onclick="startGameWithDifficulty('easy')">Play Easy</button>
+          <button id="mediumBtn" class="button" style="background:#ffeb3b;color:#000;" onclick="startGameWithDifficulty('medium')">Play Medium</button>
+          <button id="hardBtn" class="button" style="background:#e57373;" onclick="startGameWithDifficulty('hard')">Play Hard</button>
+        </div>
+
+        <p style="margin-top:16px;">
+          <a href="https://www.charitywater.org" target="_blank" style="color:#003366; text-decoration:underline;">Learn about Charity: Water</a>
+        </p>
+      </div>
+
+      <!-- Name prompt & leaderboard area (kept hidden until used by game.js) -->
+      <div id="namePrompt" style="display:none; margin-bottom:20px;">
+        <label for="playerName">Enter your name:</label>
+        <input type="text" id="playerName" maxlength="20" style="font-size:20px;">
+        <button class="button" onclick="submitScore()">Submit</button>
+      </div>
+
+      <div id="leaderboard" style="display:none;">
+        <div id="charityDesc" style="max-width:480px; margin-bottom:24px; color:#333; font-size:18px; text-align:left;">
+          <div style="font-size:2em; color:#1a1a1a; font-family:'Georgia','Times New Roman',serif; font-weight:400; margin-bottom:8px;">
+            Charity : Water
+          </div>
+          <a href="https://www.charitywater.org" target="_blank" style="color:#003366; text-decoration:underline; font-size:1em;">Visit charitywater.org</a>
+          <p style="margin-top:12px; font-size:1em; color:#333;">
+            Charity: Water is a non-profit bringing clean drinking water to communities in need.
+          </p>
+        </div>
+        <h3>Leaderboard</h3>
+        <ul id="scoresList"></ul>
+        <button class="button" onclick="restartFromLeaderboard()">Play Again</button>
+      </div>
+    </div>
+
+    <div id="ui">
+      <button id="sonarBtn" class="button active" onclick="setMode('sonar')">Sonar</button>
+      <button id="drillBtn" class="button" onclick="setMode('drill')">Place Drill</button>
+      <button id="pipeBtn" class="button" onclick="setMode('pipe')">Build Pipe</button>
+      <button class="button" onclick="endGame()">Bankruptcy</button>
+      <span id="score">Thirst Quenched: 0</span>
+      <span id="money" style="font-size:18px; color:#1976d2; margin-left:20px; font-weight:bold; transition:transform 0.3s, color 0.3s;">$500</span>
+    </div>
+
+    <p style="max-width: 480px; margin-top: 10px; color: #555;">
+      <strong>How to Play:</strong> Use sonar to scan underground for hidden water deposits. Place drills above ground, then build pipes to connect your drills to the water sources. As people arrive, serve them water from your drills to quench their thirst and earn money.
+    </p>
+  </div>
+
+  <script>
+    // Start the game properly by calling your game.js functions (setGameMode + initGame)
+    function startGameWithDifficulty(mode) {
+      // hide overlay
+      const overlay = document.getElementById('leaderboardScreen');
+      if (overlay) overlay.style.display = 'none';
+
+      // set difficulty (uses setGameMode in game.js)
+      if (typeof window.setGameMode === 'function') {
+        window.setGameMode(mode);
+      }
+
+      // initialize the game board
+      if (typeof window.initGame === 'function') {
+        window.initGame();
+      } else {
+        // If initGame isn't on window yet, just call draw() if available (fallback)
+        if (typeof window.draw === 'function') window.draw();
+        console.warn('initGame not found on window — make sure game.js defines initGame globally.');
+      }
+    }
+
+    // Expose small helper to show the welcome overlay again if needed
+    function showWelcomeOverlay() {
+      document.getElementById('leaderboardScreen').style.display = 'flex';
+      // ensure welcome view visible (name/leaderboard toggles are handled by game.js)
+      document.getElementById('welcomeScreen').style.display = 'block';
+    }
+    window.showWelcomeOverlay = showWelcomeOverlay;
+  </script>
+
+  <script src="game.js"></script>
 </body>
 </html>
-
